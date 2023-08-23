@@ -1,4 +1,5 @@
 import Canvas from "./Canvas";
-import AddImage from "./AddImage";
+import CanvasPixel from "./CanvasPixel";
+import Palette from "./Palette";
 
-export { Canvas, AddImage }
+export { Canvas, CanvasPixel, Palette }

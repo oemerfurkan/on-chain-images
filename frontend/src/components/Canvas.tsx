@@ -1,53 +1,73 @@
-import { useEffect, useRef } from "react";
-import { useLocalProvider } from "../hooks";
-import useSignerProvider from "../hooks/useSignerProvider";
+import { useState } from "react";
+import { usePrepareContractWrite, useContractWrite } from "wagmi";
+import { address } from "../abi/address.json"
+import abi from "../abi/abi.json"
 
-const Canvas = (props: any) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+type RGBColor = [r: number, g: number, b: number];
 
-//   const {localProvider, localContract} = useLocalProvider()
-  const {signer, signerContract: contract, signerProvider: provider} = useSignerProvider()
+type RGBAColor = [r: number, g: number, b: number, a: number];
 
-  //TODO: Get image data from the contract
-  const uploadImageData = async () => {
-      contract?.createRGBImage("Deneme", 2, 2, [[0,0,0],[0,0,0],[0,0,0],[0,0,0]])
-      .catch((err: any) => console.log(err))
+const Canvas = () => {
+  const [brush, setBrush] = useState<RGBColor>([0, 0, 0]);
 
-  }
+  // Create an array of arrays to represent the pixels
+  const [array, setArray] = useState<RGBColor[][]>(
+    Array(100).fill(Array(1).fill([132, 132, 132]))
+  );
 
-  const getImageData = async () => {
+  const handlePixelClick = (row: number, col: number) => {
+    // Create a new copy of the array and update the clicked pixel
+    const newArray = array.map((rowArray, rowIndex) =>
+      rowArray.map((pixel, colIndex) =>
+        rowIndex === row && colIndex === col ? brush : pixel
+      )
+    );
+    setArray(newArray);
+    console.log(newArray)
+  };
 
-    const imgData = await contract?.returnColors("0xa0Ee7A142d267C1f36714E4a8F75612F20a79720")
-    console.log(imgData)
-  } 
+  const { config } = usePrepareContractWrite({
+    address: `0x${address.slice(2,42)}`,
+    abi: abi,
+    functionName: "createRGBImage",
+    args: ["Deneme", 10, 10, array[0]]
+  })
 
-  useEffect(() => {
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
+  const {write: createImage} = useContractWrite(config)
 
-      //Define image's width and height
-      const imgData = context?.createImageData(10, 10);
+  return (
+    <>
+      <div className="flex flex-wrap w-[10rem]">
+        {array.map((rowArray, rowIndex) =>
+          rowArray.map((val, colIndex) => (
+            <div
+              key={`${rowIndex}-${colIndex}`}
+              onClick={() => handlePixelClick(rowIndex, colIndex)}
+              style={{ backgroundColor: `rgb(${val[0]},${val[1]},${val[2]})` }}
+              className="w-[1rem] h-[1rem]"
+            ></div>
+          ))
+        )}
+      </div>
 
-      // With a for loop initialize every pixel of the image
-      if (imgData) {
-        for (var i = 0; i < imgData.data.length; i += 4) {
-          imgData.data[i + 0] = i;
-          imgData.data[i + 1] = i;
-          imgData.data[i + 2] = i;
-          imgData.data[i + 3] = 255;
-        }
+      <div className="flex gap-5 p-5">
+        <div
+          onClick={() => setBrush([255, 0, 0])}
+          className="bg-[#FF0000] w-10 h-10 rounded-full"
+        ></div>
+        <div
+          onClick={() => setBrush([0, 255, 0])}
+          className="bg-[#00FF00] w-10 h-10 rounded-full"
+        ></div>
+        <div
+          onClick={() => setBrush([0, 0, 255])}
+          className="bg-[#0000FF] w-10 h-10 rounded-full"
+        ></div>
+      </div>
 
-        context?.putImageData(imgData, 10, 10);
-      }
-    }
-  }, []);
-
-  return <>
-    <canvas ref={canvasRef} {...props} className="" />
-    <button onClick={() => uploadImageData()}>upload</button>
-    <button onClick={() => getImageData()}>get</button>
-  </>;
+      <button onClick={() => createImage?.()} className="bg-gray-500 w-32 h-10 hover:bg-gray-700">Create Image</button>
+    </>
+  );
 };
 
 export default Canvas;
